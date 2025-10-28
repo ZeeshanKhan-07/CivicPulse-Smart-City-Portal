@@ -16,6 +16,11 @@ const RoleSelectionModal = ({ onClose }) => {
     navigate('/adminLogin'); // Redirect to Admin Login page
   };
 
+  const handleDepartmentClick = () => {
+    onClose();
+    navigate('/departmentLogin');
+  }
+ 
   return (
     // Modal Overlay/Backdrop
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -47,14 +52,21 @@ const RoleSelectionModal = ({ onClose }) => {
             onClick={handleUserClick} 
             className="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-300 shadow-md"
           >
-            I am a User
+            I'm a User
           </button>
           
           <button 
             onClick={handleAdminClick} 
             className="w-full px-6 py-3 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 transition duration-300 shadow-md"
           >
-            I am an Admin
+            I'm an Admin
+          </button>
+
+          <button 
+            onClick={handleDepartmentClick} 
+            className="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition duration-300 shadow-md"
+          >
+            I'm Department Officer
           </button>
           
         </div>

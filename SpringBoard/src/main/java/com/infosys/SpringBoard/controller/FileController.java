@@ -20,10 +20,6 @@ public class FileController {
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    /**
-     * Endpoint to serve the image file given its filename.
-     * URL Example: GET /api/files/download/a3e4d-uuid.jpg
-     */
     @GetMapping("/download/{filename:.+}") // :.+ ensures the file extension is included in the path variable
     public ResponseEntity<Resource> downloadFile(@PathVariable String filename) {
         try {

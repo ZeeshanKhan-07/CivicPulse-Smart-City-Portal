@@ -34,12 +34,6 @@ public class UserController {
     @Autowired
     private ComplainService complainService;
     
-    // NOTE: Removed @Autowired private AdminService adminService; 
-    // and the updateComplainStatus method, as they belong to AdminController.
-
-    // ------------------------------------------------------------------
-    // 1. SIGNUP
-    // ------------------------------------------------------------------
     @PostMapping("/signup")
     public ResponseEntity<String> signUp(@RequestBody User user) {
         try {
@@ -52,9 +46,6 @@ public class UserController {
         }
     }
 
-    // ------------------------------------------------------------------
-    // 2. LOGIN
-    // ------------------------------------------------------------------
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody User user) {
         boolean success = userService.loginUser(user.getEmail(), user.getPassword());
@@ -63,19 +54,16 @@ public class UserController {
             // Success: Return 200 OK and User ID for tracking
             Optional<User> loggedInUser = userService.findByEmail(user.getEmail());
             // This response format helps the frontend easily get the ID.
-            return new ResponseEntity<>("Login Successful;UserID:" + loggedInUser.get().getId(), HttpStatus.OK);
+            return new ResponseEntity<>("Login Successful UserID:" + loggedInUser.get().getId(), HttpStatus.OK);
         } else {
             // Failure: Return 401 Unauthorized (Standard for login failure)
             return new ResponseEntity<>("Invalid email or password", HttpStatus.UNAUTHORIZED);
         }
     }
 
-    // ------------------------------------------------------------------
-    // 3. RAISE COMPLAINT (Multi-part form data)
-    // ------------------------------------------------------------------
     @PostMapping("/complain/raise")
     public ResponseEntity<String> raiseComplain(
-            @RequestParam("userId") int userId,
+            @RequestParam("userId") Long userId,
             @RequestParam("title") String title,
             @RequestParam("category") String category,
             @RequestParam("description") String description,
@@ -96,15 +84,8 @@ public class UserController {
         }
     }
 
-    // ------------------------------------------------------------------
-    // 4. TRACK COMPLAINTS (User History)
-    // ------------------------------------------------------------------
-    /**
-     * Allows a logged-in user to see all their complaints and their status (Pending/Resolved).
-     * URL: GET /api/users/complaints/history/123
-     */
     @GetMapping("/complaints/history/{userId}")
-    public ResponseEntity<List<Complains>> getComplaintHistory(@PathVariable int userId) {
+    public ResponseEntity<List<Complains>> getComplaintHistory(@PathVariable Long userId) {
         
         List<Complains> complaints = complainService.getComplaintsByUserId(userId);
 

@@ -50,18 +50,34 @@ public class AdminController {
      */
     @PutMapping("/complaints/{id}/status")
     public ResponseEntity<?> updateComplainStatus(
-            @PathVariable("id") int complainId,
+            @PathVariable("id") Long complainId,
             @RequestBody Map<String, String> statusUpdate) {
 
         String newStatus = statusUpdate.get("status");
+        String message = statusUpdate.get("message");
 
         if (newStatus == null || newStatus.trim().isEmpty()) {
             return new ResponseEntity<>("Status field is required.", HttpStatus.BAD_REQUEST);
         }
 
         // Delegation to the business logic layer
-        return adminService.updateComplainStatus(complainId, newStatus)
+        return adminService.updateComplainStatus(complainId, newStatus, message)
                 .<ResponseEntity<?>>map(updatedComplain -> new ResponseEntity<>(updatedComplain, HttpStatus.OK))
                 .orElseGet(() -> new ResponseEntity<>("Complaint not found or status invalid.", HttpStatus.NOT_FOUND));
+    }
+
+    @PutMapping("/complaints/{id}/assign-department")
+    public ResponseEntity<?> assignComplaintToDepartment(
+            @PathVariable("id") Long complainId,
+            @RequestBody Map<String, Long> requestBody) {
+
+        Long departmentId = requestBody.get("departmentId");
+        if (departmentId == null) {
+            return new ResponseEntity<>("departmentId is required", HttpStatus.BAD_REQUEST);
+        }
+
+        return adminService.assignComplaintToDepartment(complainId, departmentId)
+                .<ResponseEntity<?>>map(updatedComplaint -> new ResponseEntity<>(updatedComplaint, HttpStatus.OK))
+                .orElseGet(() -> new ResponseEntity<>("Complaint or Department not found.", HttpStatus.NOT_FOUND));
     }
 }
