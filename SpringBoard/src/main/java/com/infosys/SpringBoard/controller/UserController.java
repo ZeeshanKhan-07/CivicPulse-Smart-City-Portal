@@ -12,6 +12,8 @@ import com.infosys.SpringBoard.services.UserService;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +35,7 @@ public class UserController {
 
     @Autowired
     private ComplainService complainService;
-    
+
     @PostMapping("/signup")
     public ResponseEntity<String> signUp(@RequestBody User user) {
         try {
@@ -72,9 +74,11 @@ public class UserController {
 
         try {
             // Delegation to service layer for file storage and entity creation
-            Complains savedComplain = complainService.submitNewComplain(userId, title, category, description, location, imageFile);
+            Complains savedComplain = complainService.submitNewComplain(userId, title, category, description, location,
+                    imageFile);
             // Success: 201 Created
-            return new ResponseEntity<>("Complaint raised successfully. ID: " + savedComplain.getComplainId(), HttpStatus.CREATED);
+            return new ResponseEntity<>("Complaint raised successfully. ID: " + savedComplain.getComplainId(),
+                    HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
             // User not found: 404 Not Found
             return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
@@ -86,10 +90,48 @@ public class UserController {
 
     @GetMapping("/complaints/history/{userId}")
     public ResponseEntity<List<Complains>> getComplaintHistory(@PathVariable Long userId) {
-        
+
         List<Complains> complaints = complainService.getComplaintsByUserId(userId);
 
         // Return 200 OK with the list (which may be empty)
         return new ResponseEntity<>(complaints, HttpStatus.OK);
+    }
+
+    @PostMapping("/complaints/{complainId}/feedback")
+    public ResponseEntity<String> submitFeedback(
+            @PathVariable Long complainId,
+            @RequestBody Map<String, Object> feedbackRequest) { // Use Map to receive JSON
+
+        // 1. Extract and validate required fields from the JSON Map
+        Integer rating = (Integer) feedbackRequest.get("rating");
+        String feedbackMessage = (String) feedbackRequest.get("feedbackMessage");
+
+        if (rating == null || feedbackMessage == null) {
+            return new ResponseEntity<>("Rating and feedbackMessage fields are required.", HttpStatus.BAD_REQUEST);
+        }
+
+        // 2. Delegate to the service layer
+        String result = complainService.sendFeedback(complainId, rating, feedbackMessage);
+
+        if (result.startsWith("Complaint not found")) {
+            return new ResponseEntity<>(result, HttpStatus.NOT_FOUND);
+        } else {
+            return new ResponseEntity<>(result, HttpStatus.OK);
+        }
+    }
+
+    @GetMapping("/complaints/{complainId}/rating")
+    public ResponseEntity<Map<String, Object>> getRating(@PathVariable Long complainId) {
+        return complainService.getRatingByComplainId(complainId)
+                .map(rating -> {
+                    Map<String, Object> resp = new HashMap<>();
+                    resp.put("rating", rating);
+                    return ResponseEntity.ok(resp);
+                })
+                .orElseGet(() -> {
+                    Map<String, Object> resp = new HashMap<>();
+                    resp.put("message", "No rating found for this complaint");
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(resp);
+                });
     }
 }

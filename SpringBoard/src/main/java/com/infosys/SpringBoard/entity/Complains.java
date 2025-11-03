@@ -1,5 +1,7 @@
 package com.infosys.SpringBoard.entity;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
@@ -62,6 +64,18 @@ public class Complains {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id", nullable = true)
     private Department department;
+
+    @Column(nullable = true)
+    private int rating;
+
+    @Column(columnDefinition = "TEXT")
+    private String feedback;
+
+    @Column(nullable = true) // Nullable because it's set by the admin later
+    private LocalDate deadlineDate;
+
+    @Column(nullable = true)
+    private LocalDateTime resolvedAt;
 
     // --- Many-to-Many Relationship ---
     @JsonIgnore

@@ -1,7 +1,112 @@
 import React, { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import gsap from "gsap";
-import { completeComplaint } from "../api/DepartmentAPI";
+import { 
+  completeComplaint, 
+  getWorkersByComplaintId, 
+  getComplaintDeadline 
+} from "../api/DepartmentAPI";
+
+// --- Deadline Timer Component ---
+const DeadlineTimer = ({ complaintId, complaint }) => {
+  const [deadline, setDeadline] = useState(null);
+  const [completionTime, setCompletionTime] = useState(null);
+  const [timeRemaining, setTimeRemaining] = useState("");
+  const [isOverdue, setIsOverdue] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const isResolved = complaint.status === "RESOLVED";
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (isResolved) {
+          // Fetch completion time for resolved complaints
+          const response = await fetch(
+            `http://localhost:8080/api/dept-manager/complaints/${complaintId}/completion-time`
+          );
+          const completionTimeText = await response.text();
+          setCompletionTime(completionTimeText);
+        } else {
+          // Fetch deadline for active complaints
+          const deadlineData = await getComplaintDeadline(complaintId);
+          setDeadline(new Date(deadlineData));
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [complaintId, isResolved]);
+
+  useEffect(() => {
+    if (!deadline || isResolved) return;
+
+    const updateTimer = () => {
+      const now = new Date();
+      const diff = deadline - now;
+
+      if (diff <= 0) {
+        setIsOverdue(true);
+        setTimeRemaining("OVERDUE");
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+      if (days > 0) {
+        setTimeRemaining(`${days}d ${hours}h`);
+      } else if (hours > 0) {
+        setTimeRemaining(`${hours}h ${minutes}m`);
+      } else {
+        setTimeRemaining(`${minutes}m`);
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [deadline, isResolved]);
+
+  if (loading) {
+    return (
+      <span className="text-xs text-gray-500 italic">Loading...</span>
+    );
+  }
+
+  // Show completion time for resolved complaints
+  if (isResolved) {
+    return (
+      <span className="text-xs font-semibold px-2 py-1 rounded bg-green-100 text-green-800">
+        ✓ Completed {completionTime || "within deadline"}
+      </span>
+    );
+  }
+
+  if (!deadline) {
+    return (
+      <span className="text-xs text-gray-500 italic">No deadline set</span>
+    );
+  }
+
+  return (
+    <span
+      className={`text-xs font-semibold px-2 py-1 rounded ${
+        isOverdue
+          ? "bg-red-100 text-red-700"
+          : "bg-yellow-100 text-yellow-800"
+      }`}
+    >
+      ⏱ {timeRemaining}
+    </span>
+  );
+};
 
 // --- Completion Modal Component ---
 const CompletionModal = ({
@@ -90,7 +195,7 @@ const CompletionModal = ({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-transparent"
-      style={{ backdropFilter: "blur(10px)" }} // stronger blur effect
+      style={{ backdropFilter: "blur(10px)" }}
     >
       <div
         ref={modalRef}
@@ -109,7 +214,7 @@ const CompletionModal = ({
         </div>
 
         {/* FORM */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
           {/* Worker Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -179,7 +284,8 @@ const CompletionModal = ({
             </button>
 
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               disabled={
                 loading ||
                 formData.workerIds.length === 0 ||
@@ -190,7 +296,7 @@ const CompletionModal = ({
               {loading ? "Submitting..." : "Mark as RESOLVED"}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
@@ -200,7 +306,33 @@ const CompletionModal = ({
 const CompliantList = ({ complaints, workers, onTaskCompleted }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
+  const [resolvedWorkersMap, setResolvedWorkersMap] = useState({});
   const listRef = useRef(null);
+
+  // Fetch workers for resolved complaints
+  useEffect(() => {
+    const fetchResolvedWorkers = async () => {
+      const workersData = {};
+      
+      for (const complaint of complaints) {
+        if (complaint.status === "RESOLVED") {
+          try {
+            const workers = await getWorkersByComplaintId(complaint.complainId);
+            workersData[complaint.complainId] = workers;
+          } catch (error) {
+            console.error(`Failed to fetch workers for complaint ${complaint.complainId}:`, error);
+            workersData[complaint.complainId] = [];
+          }
+        }
+      }
+      
+      setResolvedWorkersMap(workersData);
+    };
+
+    if (complaints.length > 0) {
+      fetchResolvedWorkers();
+    }
+  }, [complaints]);
 
   // Animate complaint cards on mount
   useEffect(() => {
@@ -237,6 +369,8 @@ const CompliantList = ({ complaints, workers, onTaskCompleted }) => {
       <div ref={listRef} className="space-y-4">
         {complaints.map((complaint) => {
           const isResolved = complaint.status === "RESOLVED";
+          const resolvedWorkers = resolvedWorkersMap[complaint.complainId] || [];
+          
           return (
             <div
               key={complaint.complainId}
@@ -247,9 +381,14 @@ const CompliantList = ({ complaints, workers, onTaskCompleted }) => {
               }`}
             >
               <div className="flex justify-between items-start">
-                <h4 className="text-xl font-semibold text-gray-900">
-                  {complaint.title}
-                </h4>
+                <div className="flex-1">
+                  <h4 className="text-xl font-semibold text-gray-900">
+                    {complaint.title}
+                  </h4>
+                  <div className="mt-2">
+                    <DeadlineTimer complaintId={complaint.complainId} complaint={complaint} />
+                  </div>
+                </div>
                 <span
                   className={`font-bold text-sm ${
                     isResolved ? "text-green-700" : "text-blue-700"
@@ -262,12 +401,41 @@ const CompliantList = ({ complaints, workers, onTaskCompleted }) => {
               <p className="text-gray-600 mt-2">{complaint.description}</p>
 
               <div className="mt-4 pt-3 border-t flex justify-between items-center">
-                <p className="text-sm text-gray-600 italic">
-                  Assigned:{" "}
-                  {complaint.workers && complaint.workers.length > 0
-                    ? complaint.workers.map((w) => w.name).join(", ")
-                    : "None"}
-                </p>
+                {isResolved ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600 font-medium">
+                      Completed by:
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {resolvedWorkers.length > 0 ? (
+                        resolvedWorkers.map((worker) => (
+                          <span
+                            key={worker.id}
+                            className="px-3 py-1 text-xs font-medium rounded-full bg-olive-100 text-olive-800 border border-olive-300"
+                            style={{
+                              backgroundColor: "#e8f5e9",
+                              color: "#2e7d32",
+                              borderColor: "#81c784",
+                            }}
+                          >
+                            {worker.name}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-gray-500 italic">
+                          Loading workers...
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-600 italic">
+                    Assigned:{" "}
+                    {complaint.workers && complaint.workers.length > 0
+                      ? complaint.workers.map((w) => w.name).join(", ")
+                      : "None"}
+                  </p>
+                )}
 
                 {!isResolved && (
                   <button

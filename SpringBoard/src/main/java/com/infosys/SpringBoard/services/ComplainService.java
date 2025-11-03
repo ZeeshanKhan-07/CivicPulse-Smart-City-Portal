@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -179,7 +181,7 @@ public class ComplainService {
             complaint.setAfterImagePath(afterImagePath);
             complaint.setMessage(message);
             complaint.setStatus(Complains.Status.RESOLVED);
-
+            complaint.setResolvedAt(java.time.LocalDateTime.now());
             // CRITICAL FIX: Set the Many-to-Many relationship using the correct field name
             complaint.setAssignedWorkers(workers);
 
@@ -214,4 +216,62 @@ public class ComplainService {
                 .map(Complains::getAssignedWorkers) // Assuming your getter is getAssignedWorkers()
                 .orElseGet(java.util.Collections::emptyList); // Return empty list if not found
     }
+
+    public String sendFeedback(Long complainId, int rating, String feedbackMessage) {
+        Optional<Complains> complaintOpt = complainRepository.findById(complainId);
+        if (complaintOpt.isPresent()) {
+            Complains complaint = complaintOpt.get();
+            complaint.setRating(rating);
+            complaint.setFeedback(feedbackMessage);
+            complainRepository.save(complaint);
+            return "Feedback submitted successfully.";
+        } else {
+            return "Complaint not found.";
+        }
+    }
+
+    public Optional<String> getDepartmentNameByComplainId(Long complainId) {
+        // findById will fetch the complaint, which should eagerly or lazily load the
+        // Department.
+        return complainRepository.findById(complainId)
+                .map(Complains::getDepartment) // Get the Department object
+                .map(Department::getName); // Get the name from the Department object
+    }
+
+    public Optional<LocalDate> getDeadlineDateByComplainId(Long complainId) {
+        return complainRepository.findDeadlineDateByComplainId(complainId);
+    }
+
+    public String calculateCompletionTime(Complains complaint) {
+        LocalDateTime deadline = null;
+        LocalDateTime resolved = complaint.getResolvedAt();
+
+        if (complaint.getDeadlineDate() != null) {
+            // If deadline_date in DB is LocalDate, convert to LocalDateTime (start of day)
+            deadline = complaint.getDeadlineDate().atStartOfDay();
+        }
+
+        if (resolved == null || deadline == null) {
+            return "Completion time unavailable";
+        }
+
+        java.time.Duration duration = java.time.Duration.between(deadline, resolved);
+        long hours = duration.toHours();
+        long days = hours / 24;
+        long remainingHours = hours % 24;
+
+        if (duration.isNegative()) {
+            return Math.abs(days) + "d " + Math.abs(remainingHours) + "h before deadline";
+        } else if (duration.isZero()) {
+            return " on the exact deadline day";
+        } else {
+            return days + "d " + remainingHours + "h after deadline";
+        }
+    }
+
+    public Optional<Integer> getRatingByComplainId(Long complainId) {
+        Integer rating = complainRepository.findRatingByComplainId(complainId);
+        return Optional.ofNullable(rating);
+    }
+
 }

@@ -1,5 +1,6 @@
 package com.infosys.SpringBoard.services;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,7 +26,6 @@ public class AdminService {
     @Autowired
     private DepartmentRepo departmentRepository;
 
-    
     public boolean loginUser(String email, String password) {
         Optional<Admin> adminOptional = adminRepository.findByEmail(email);
 
@@ -69,7 +69,7 @@ public class AdminService {
         }
     }
 
-    public Optional<Complains> assignComplaintToDepartment(Long complainId, Long departmentId) {
+    public Optional<Complains> assignComplaintToDepartment(Long complainId, Long departmentId, Long timelineDays) {
 
         Optional<Complains> complainOpt = complainRepository.findById(complainId);
         Optional<Department> deptOpt = departmentRepository.findById(departmentId);
@@ -77,6 +77,10 @@ public class AdminService {
         if (complainOpt.isPresent() && deptOpt.isPresent()) {
             Complains complain = complainOpt.get();
             complain.setDepartment(deptOpt.get());
+
+            // CRITICAL: Calculate the future deadline date
+            LocalDate deadline = LocalDate.now().plusDays(timelineDays);
+            complain.setDeadlineDate(deadline); // <--- Set the new field
 
             // Optionally, set status to IN_PROGRESS when assigned
             complain.setStatus(Complains.Status.IN_PROGRESS);

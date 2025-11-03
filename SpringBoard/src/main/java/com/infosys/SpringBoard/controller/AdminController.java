@@ -72,12 +72,16 @@ public class AdminController {
             @RequestBody Map<String, Long> requestBody) {
 
         Long departmentId = requestBody.get("departmentId");
-        if (departmentId == null) {
-            return new ResponseEntity<>("departmentId is required", HttpStatus.BAD_REQUEST);
+        // NEW: Get the timeline in days
+        Long timelineDays = requestBody.get("timelineDays");
+
+        if (departmentId == null || timelineDays == null) {
+            return new ResponseEntity<>("departmentId and timelineDays are required", HttpStatus.BAD_REQUEST);
         }
 
-        return adminService.assignComplaintToDepartment(complainId, departmentId)
-                .<ResponseEntity<?>>map(updatedComplaint -> new ResponseEntity<>(updatedComplaint, HttpStatus.OK))
+        // Pass the new parameter to the service
+        return adminService.assignComplaintToDepartment(complainId, departmentId, timelineDays)
+                .<ResponseEntity<?>>map(updatedComplain -> new ResponseEntity<>(updatedComplain, HttpStatus.OK))
                 .orElseGet(() -> new ResponseEntity<>("Complaint or Department not found.", HttpStatus.NOT_FOUND));
     }
 }

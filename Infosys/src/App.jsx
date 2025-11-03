@@ -21,6 +21,7 @@ import UserProfile from "./Pages/UserProfile";
 import AdminProfile from "./Pages/AdminProfile"; // Ensure this is imported
 import DepartmentDashboard from "./Pages/DepartmentDashboard";
 import DepartmentLogin from "./Pages/DepartmentLogin";
+import { Toaster } from "react-hot-toast";
 
 // --- Private Route Component (Updated) ---
 const PrivateRoute = ({ isAdminRoute }) => {
@@ -54,7 +55,9 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      <Toaster position="top-center" reverseOrder={false} />
       <Routes>
+        
         {/* 1. Public Routes (Auth Pages) */}
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<Login />} />

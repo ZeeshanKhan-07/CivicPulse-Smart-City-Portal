@@ -151,3 +151,42 @@ export const getWorkersByComplaintId = async (complainId) => {
         return [];
     }
 };
+
+export const getDepartmentNameByComplaintId = async (complainId) => {
+    try {
+        // Hitting the new backend endpoint: GET /api/dept-manager/complaints/{complainId}/department-name
+        const response = await axios.get(`${API_BASE_URL}/complaints/${complainId}/department-name`);
+        
+        // The backend returns the department name as a string directly (response.data)
+        return response.data; 
+    } catch (error) {
+        if (error.response && error.response.status === 404) {
+            // Complaint not found or department not assigned
+            return "Department not assigned"; 
+        }
+        console.error(`Failed to fetch department name for Complaint ${complainId}:`, error);
+        throw new Error("Failed to retrieve department name.");
+    }
+};
+
+export const getComplaintDeadline = async (complaintId) => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/complaints/${complaintId}/deadline`);
+        return response.data; // Expected: date string or deadline object
+    } catch (error) {
+        console.error(`Failed to fetch deadline for complaint ${complaintId}:`, error);
+        throw new Error(error.response?.data?.message || "Failed to get complaint deadline.");
+    }
+};
+
+export const getComplaintCompletionTime = async (complaintId) => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/complaints/${complaintId}/completion-time`);
+        // The backend should return something like: "Completed within 1 days, 3 hours"
+        return response.data;
+    } catch (error) {
+        console.error(`Failed to fetch completion time for complaint ${complaintId}:`, error);
+        throw new Error(error.response?.data?.message || "Failed to get completion time.");
+    }
+};
+

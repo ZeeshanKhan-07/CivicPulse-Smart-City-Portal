@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional; // Required for Optional handling
@@ -39,6 +40,9 @@ public class DepartmentManagementController {
 
     @Autowired
     private DepartmentRepo departmentRepository;
+
+    @Autowired
+    private ComplainService complainService;
 
     @PostMapping("/login")
     public ResponseEntity<Long> login(@RequestBody DepartmentLoginRequest loginRequest) { // -> Working but returning
@@ -156,4 +160,31 @@ public class DepartmentManagementController {
         return ResponseEntity.ok(workers);
     }
 
+    @GetMapping("/complaints/{complainId}/department-name")
+    public ResponseEntity<String> getDepartmentNameForComplaint(@PathVariable Long complainId) {
+        Optional<String> departmentName = complaintService.getDepartmentNameByComplainId(complainId);
+
+        return departmentName
+                .map(name -> new ResponseEntity<>(name, HttpStatus.OK))
+                .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
+    }
+
+    @GetMapping("/complaints/{complainId}/deadline")
+    public ResponseEntity<LocalDate> getDeadlineDate(@PathVariable Long complainId) {
+        return complainService.getDeadlineDateByComplainId(complainId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/complaints/{id}/completion-time")
+    public ResponseEntity<String> getCompletionTime(@PathVariable Long id) {
+        Optional<Complains> complaintOpt = complainRepository.findById(id);
+
+        if (complaintOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Complaint not found");
+        }
+
+        String result = complainService.calculateCompletionTime(complaintOpt.get());
+        return ResponseEntity.ok(result);
+    }
 }
