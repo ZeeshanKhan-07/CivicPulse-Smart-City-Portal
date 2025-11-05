@@ -47,6 +47,7 @@ public class Complains {
     private String title;
     private String category;
     private String description;
+    private String city;
     private String location;
 
     @Enumerated(EnumType.STRING)

@@ -70,11 +70,12 @@ public class UserController {
             @RequestParam("category") String category,
             @RequestParam("description") String description,
             @RequestParam("location") String location,
+            @RequestParam("city") String city,
             @RequestParam(value = "image", required = false) MultipartFile imageFile) {
 
         try {
             // Delegation to service layer for file storage and entity creation
-            Complains savedComplain = complainService.submitNewComplain(userId, title, category, description, location,
+            Complains savedComplain = complainService.submitNewComplain(userId, title, category, description, city, location,
                     imageFile);
             // Success: 201 Created
             return new ResponseEntity<>("Complaint raised successfully. ID: " + savedComplain.getComplainId(),

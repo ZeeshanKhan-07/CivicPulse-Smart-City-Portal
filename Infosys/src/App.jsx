@@ -2,14 +2,12 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  Link,
-  useLocation,
   Navigate,
-  Outlet,
+  useLocation, // Correctly placed inside the Router context now
 } from "react-router-dom";
 import "./App.css";
 
-// Import all required pages
+// Import all required pages and components
 import Login from "./Pages/login/Login";
 import Signup from "./Pages/login/Signup";
 import AdminLogin from "./Pages/login/AdminLogin";
@@ -18,40 +16,16 @@ import Status from "./Pages/Status";
 import ComplaintsDashboard from "./Pages/ComplaintsDashboard";
 import HomePage from "./Pages/Home";
 import UserProfile from "./Pages/UserProfile";
-import AdminProfile from "./Pages/AdminProfile"; // Ensure this is imported
+import AdminProfile from "./Pages/AdminProfile";
 import DepartmentDashboard from "./Pages/DepartmentDashboard";
 import DepartmentLogin from "./Pages/DepartmentLogin";
+import PrivateRoute from "./Components/PrivateRoute";
 import { Toaster } from "react-hot-toast";
 
-// --- Private Route Component (Updated) ---
-const PrivateRoute = ({ isAdminRoute }) => {
-  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
-  const isAdmin = localStorage.getItem("isAdmin") === "true";
-
-  // 1. If not logged in, redirect to login page.
-  if (!isLoggedIn) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // 2. If accessing an Admin route but not an Admin, redirect to user dashboard.
-  if (isAdminRoute && !isAdmin) {
-    return <Navigate to="/user-dashboard" replace />;
-  }
-
-  // 3. If accessing a User route but is an Admin, redirect to admin dashboard.
-  if (!isAdminRoute && isAdmin) {
-    return <Navigate to="/admin-dashboard" replace />;
-  }
-
-  // Pass control to the nested route
-  return <Outlet />;
-};
-// ------------------------------------------------------------------
-
+// The App component must be inside the Router to use routing hooks
 function App() {
-  const location = useLocation();
-
-  // Note: Removed the unused isProtectedOrAuthPage variable.
+  // useLocation is now valid as App is rendered within Router in AppWrapper
+  const location = useLocation(); 
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -65,47 +39,57 @@ function App() {
         <Route path="/adminLogin" element={<AdminLogin />} />
         <Route path="/departmentLogin" element={<DepartmentLogin />} />
 
-        {/* Dashboard Page - Secured by localStorage check inside the component */}
+        {/* Department Dashboard - Assuming the logic for department access is handled internally 
+            and doesn't require the Admin/User PrivateRoute logic. */}
         <Route path="/dashboard/:deptId" element={<DepartmentDashboard />} />
 
-        {/* 2. User Protected Routes */}
+        {/* 2. User Protected Routes (isAdminRoute={false}) */}
         <Route element={<PrivateRoute isAdminRoute={false} />}>
-          {/* NEW PATH: Consolidated user profile/dashboard access */}
+          {/* Default user dashboard/profile */}
           <Route path="/user-profile" element={<UserProfile />} />
           <Route path="/registerComplains" element={<RegisterComplains />} />
           <Route path="/status" element={<Status />} />
-          {/* Aliases/redirects for consistency */}
-          <Route path="/user-dashboard" element={<UserProfile />} />
+          {/* Alias/redirect: /user-dashboard redirects to /user-profile */}
+          <Route path="/user-dashboard" element={<Navigate to="/user-profile" replace />} />
         </Route>
 
-        {/* 3. Admin Protected Routes */}
+        {/* 3. Admin Protected Routes (isAdminRoute={true}) */}
         <Route element={<PrivateRoute isAdminRoute={true} />}>
-          {/* NEW PATH: Consolidated admin profile/dashboard access */}
+          {/* Default admin dashboard/profile */}
           <Route path="/admin-profile" element={<AdminProfile />} />
           <Route path="/complaints" element={<ComplaintsDashboard />} />
-          {/* Aliases/redirects for consistency */}
-          <Route path="/admin-dashboard" element={<AdminProfile />} />
+          {/* Alias/redirect: /admin-dashboard redirects to /admin-profile */}
+          <Route path="/admin-dashboard" element={<Navigate to="/admin-profile" replace />} />
         </Route>
 
-        {/* 4. Catch-all: Redirect any stray /profile attempts to the correct dashboard */}
+        {/* 4. Root /profile Redirection */}
+        {/* This handles direct access to /profile, redirecting based on the user's role */}
         <Route
           path="/profile"
           element={
-            localStorage.getItem("isAdmin") === "true" ? (
-              <Navigate to="/admin-profile" replace />
+            localStorage.getItem("isLoggedIn") === "true" ? (
+              // User is logged in, redirect to the appropriate profile
+              localStorage.getItem("isAdmin") === "true" ? (
+                <Navigate to="/admin-profile" replace />
+              ) : (
+                <Navigate to="/user-profile" replace />
+              )
             ) : (
-              <Navigate to="/user-profile" replace />
+              // Not logged in, redirect to login page
+              <Navigate to="/login" replace />
             )
           }
         />
 
-        {/* 5. Fallback Route */}
+        {/* 5. Fallback Route: Catch-all for unknown paths */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   );
 }
 
+// Export the wrapper function which contains the Router
+// This is what should be rendered in your main.jsx/main.tsx file.
 export default function AppWrapper() {
   return (
     <Router>

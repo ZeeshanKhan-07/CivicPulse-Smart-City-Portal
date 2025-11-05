@@ -1,5 +1,6 @@
 package com.infosys.SpringBoard.services;
 
+import com.infosys.SpringBoard.dto.DepartmentComplaintCountDTO;
 import com.infosys.SpringBoard.entity.Complains;
 import com.infosys.SpringBoard.entity.User;
 import com.infosys.SpringBoard.entity.Department;
@@ -67,7 +68,7 @@ public class ComplainService {
     }
 
     @Transactional
-    public Complains submitNewComplain(Long userId, String title, String category, String description, String location,
+    public Complains submitNewComplain(Long userId, String title, String category, String description, String city, String location,
             MultipartFile imageFile) throws IOException {
 
         Optional<User> userOptional = userService.findById(userId);
@@ -95,6 +96,7 @@ public class ComplainService {
         newComplain.setTitle(title);
         newComplain.setCategory(category);
         newComplain.setDescription(description);
+        newComplain.setCity(city);
         newComplain.setLocation(location);
         newComplain.setDepartment(null);
         newComplain.setStatus(Complains.Status.PENDING);
@@ -272,6 +274,10 @@ public class ComplainService {
     public Optional<Integer> getRatingByComplainId(Long complainId) {
         Integer rating = complainRepository.findRatingByComplainId(complainId);
         return Optional.ofNullable(rating);
+    }
+
+    public List<DepartmentComplaintCountDTO> getComplaintCountByDepartment() {
+        return complainRepository.getComplaintCountByDepartment();
     }
 
 }

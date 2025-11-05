@@ -12,9 +12,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.infosys.SpringBoard.dto.DepartmentComplaintCountDTO;
 import com.infosys.SpringBoard.entity.Admin;
 import com.infosys.SpringBoard.entity.Complains;
 import com.infosys.SpringBoard.services.AdminService;
+import com.infosys.SpringBoard.services.ComplainService;
 
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -27,6 +29,9 @@ public class AdminController {
 
     @Autowired
     private AdminService adminService;
+
+    @Autowired
+    private ComplainService complainService;
 
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody Admin admin) {
@@ -83,5 +88,11 @@ public class AdminController {
         return adminService.assignComplaintToDepartment(complainId, departmentId, timelineDays)
                 .<ResponseEntity<?>>map(updatedComplain -> new ResponseEntity<>(updatedComplain, HttpStatus.OK))
                 .orElseGet(() -> new ResponseEntity<>("Complaint or Department not found.", HttpStatus.NOT_FOUND));
+    }
+
+    @GetMapping("/complaints/department-count")
+    public ResponseEntity<List<DepartmentComplaintCountDTO>> getComplaintCountByDepartment() {
+        List<DepartmentComplaintCountDTO> data = complainService.getComplaintCountByDepartment();
+        return ResponseEntity.ok(data);
     }
 }

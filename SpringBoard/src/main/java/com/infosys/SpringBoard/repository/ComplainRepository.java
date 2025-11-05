@@ -1,5 +1,6 @@
 package com.infosys.SpringBoard.repository;
 
+import com.infosys.SpringBoard.dto.DepartmentComplaintCountDTO;
 import com.infosys.SpringBoard.entity.Complains;
 
 import java.time.LocalDate;
@@ -27,5 +28,10 @@ public interface ComplainRepository extends JpaRepository<Complains, Long> {
 
     @Query("SELECT c.rating FROM Complains c WHERE c.complainId = :complainId")
     Integer findRatingByComplainId(@Param("complainId") Long complainId);
+
+    @Query("SELECT new com.infosys.SpringBoard.dto.DepartmentComplaintCountDTO(d.name, COUNT(c)) " +
+            "FROM Complains c JOIN c.department d " +
+            "GROUP BY d.name")
+    List<DepartmentComplaintCountDTO> getComplaintCountByDepartment();
 
 }
