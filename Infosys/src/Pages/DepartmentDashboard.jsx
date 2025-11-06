@@ -9,7 +9,7 @@ import {
 } from "../api/DepartmentAPI";
 import CompliantList from "../Components/CompliantList";
 import WorkerModal from "../Components/WorkerModal";
-import { Toaster } from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 
 const DeptDashboard = () => {
   const { deptId: paramDeptId } = useParams();
@@ -52,12 +52,21 @@ const DeptDashboard = () => {
     setIsWorkerModalOpen(false);
   };
 
+  // ✅ Updated logout handler with toast + delay
   const handleLogout = () => {
     logoutDepartment();
-    window.location.href = "/login";
+
+    // Show toast message
+    toast.success("Logged out successfully!");
+
+    // Wait 1 second before redirecting
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 1000);
   };
 
   if (!deptId) return <Navigate to="/login" />;
+
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center text-lg text-gray-700">
@@ -67,7 +76,8 @@ const DeptDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Toaster position="top-right" />
+      {/* ✅ Toaster for popups at top center */}
+      <Toaster position="top-center" reverseOrder={false} />
 
       {/* ✅ Sticky Navbar */}
       <header className="sticky top-0 z-50 bg-white shadow-md border-b border-gray-100">

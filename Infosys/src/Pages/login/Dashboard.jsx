@@ -9,7 +9,7 @@ function Dashboard() {
   const handleLogout = () => {
     localStorage.removeItem("isLoggedIn");
     localStorage.removeItem("userEmail");
-    navigate("/login");
+    navigate("/");
   };
 
   const handleFeedbackSubmit = () => {

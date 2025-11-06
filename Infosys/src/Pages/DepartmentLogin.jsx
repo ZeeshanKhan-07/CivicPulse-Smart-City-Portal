@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginDepartment, getAllDepartmentNames } from "../api/DepartmentAPI";
-import toast from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 
 const DeptLogin = () => {
   const [formData, setFormData] = useState({
@@ -63,6 +63,7 @@ const DeptLogin = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <Toaster position="top-center" reverseOrder={false} />
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 sm:p-10">
         <h2 className="text-center text-3xl font-extrabold text-gray-800 mb-8">
           Department Officer Login

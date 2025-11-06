@@ -90,9 +90,23 @@ public class AdminController {
                 .orElseGet(() -> new ResponseEntity<>("Complaint or Department not found.", HttpStatus.NOT_FOUND));
     }
 
+    @GetMapping("/complaints/{complainId}/feedback")
+    public ResponseEntity<?> getFeedbackDetails(@PathVariable Long complainId) {
+        return complainService.getFeedbackDetailsByComplainId(complainId)
+                .map(feedback -> ResponseEntity.ok(feedback))
+                .orElseGet(() -> ResponseEntity
+                        .status(404)
+                        .body(Map.of("message", "Complaint not found or feedback not available")));
+    }
+
     @GetMapping("/complaints/department-count")
     public ResponseEntity<List<DepartmentComplaintCountDTO>> getComplaintCountByDepartment() {
         List<DepartmentComplaintCountDTO> data = complainService.getComplaintCountByDepartment();
         return ResponseEntity.ok(data);
+    }
+
+    @GetMapping("/complaints/city-count")
+    public List<Map<String, Object>> getComplaintCountByCity() {
+        return complainService.getComplaintCountByCity();
     }
 }

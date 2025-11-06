@@ -82,7 +82,7 @@ function RegisterComplains() {
             duration: 0.5,
             onComplete: () => {
                 localStorage.clear();
-                navigate('/login');
+                navigate('/');
             }
         });
     };

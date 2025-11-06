@@ -4,9 +4,10 @@ import toast, { Toaster } from "react-hot-toast";
 
 // --- REQUIRED IMPORTS ---
 import AssignmentPopup from "../Components/AssignDepartmentModal";
-import { getAllDepartmentNames, getDepartmentNameByComplaintId } from "../api/DepartmentAPI";
+import { getAllDepartmentNames, getDepartmentNameByComplaintId } from "../api/DepartmentAPI"; 
+import { fetchFeedbackDetails } from "../api/AdminAPI";
 import ComplaintsByCategoryChart from "../Components/charts/ComplaintsByCategoryChart";
-// Assuming the path is correct.
+import ComplaintsByZoneChart from "../Components/charts/ComplaintsByZoneChart";
 
 // --- API Constants ---
 const API_BASE_URL = "http://localhost:8080/api/admin/complaints";
@@ -20,30 +21,44 @@ const STATUS_FILTERS = {
     ALL_OPEN: "Open",
 };
 
-// --- Sticky Header Component ---
-const StickyAdminHeader = ({
-    onLogout,
-    onRefresh,
-    activeFilter,
-    setActiveFilter,
-    isChartsView,
-    setIsChartsView, // NEW PROP
-}) => {
-    // Utility class for the filter buttons (now handles chart button too)
-    const getFilterButtonClass = (filter) => {
-        const base =
-            "px-3 py-1 rounded-lg font-medium text-sm transition-colors duration-200 shadow-md whitespace-nowrap";
+// --- Star Rating Component (Unchanged) ---
+const StarRating = ({ rating }) => {
+    const totalStars = 5;
+    const filledStars = Math.min(Math.max(0, rating), totalStars); // Clamp between 0 and 5
+    const stars = [];
 
-        // Determine if the filter or chart view is active
-        const isActive = (filter === activeFilter && !isChartsView) || (filter === 'CHARTS' && isChartsView);
+    for (let i = 1; i <= totalStars; i++) {
+        stars.push(
+            <span 
+                key={i} 
+                className={`text-xl ${i <= filledStars ? 'text-yellow-500' : 'text-gray-300'}`}
+                style={{ lineHeight: 1 }}
+            >
+                ★
+            </span>
+        );
+    }
+    return <div className="flex space-x-0.5 inline-block">{stars}</div>;
+};
+// --- End Star Rating Component ---
+
+
+// --- Sticky Header Component (Unchanged) ---
+const StickyAdminHeader = ({
+    onLogout, onRefresh, activeFilter, setActiveFilter, activeChart, setActiveChart,
+}) => {
+    const isListView = activeChart === 'LIST';
+    const isDeptChartActive = activeChart === 'DEPT_CHART';
+    const isZoneChartActive = activeChart === 'ZONE_CHART';
+    
+    const getFilterButtonClass = (filter) => {
+        const base = "px-3 py-1 rounded-lg font-medium text-sm transition-colors duration-200 shadow-md whitespace-nowrap";
+        const isActive = isListView ? filter === activeFilter : (filter === 'DEPT_CHART' && isDeptChartActive) || (filter === 'ZONE_CHART' && isZoneChartActive);
 
         if (isActive) {
-            if (filter === STATUS_FILTERS.RESOLVED)
-                return `${base} bg-green-700 text-white`;
-            if (filter === STATUS_FILTERS.IN_PROGRESS)
-                return `${base} bg-indigo-600 text-white`;
-            if (filter === 'CHARTS')
-                return `${base} bg-teal-600 text-white`; // Active chart button color
+            if (filter === STATUS_FILTERS.RESOLVED) return `${base} bg-green-700 text-white`;
+            if (filter === STATUS_FILTERS.IN_PROGRESS) return `${base} bg-indigo-600 text-white`;
+            if (filter === 'DEPT_CHART' || filter === 'ZONE_CHART') return `${base} bg-teal-600 text-white`;
             return `${base} bg-yellow-600 text-gray-900`;
         } else {
             return `${base} bg-gray-100 text-gray-700 hover:bg-gray-200`;
@@ -52,16 +67,14 @@ const StickyAdminHeader = ({
 
     const adminName = localStorage.getItem("adminName") || "Admin";
 
-    // Function to handle clicking on a status filter
     const handleFilterClick = (filter) => {
-        setIsChartsView(false); // Switch OFF chart view
-        setActiveFilter(filter); // Set the status filter
+        setActiveChart('LIST'); 
+        setActiveFilter(filter); 
     };
-
-    // Function to handle clicking the charts button
-    const handleChartsClick = () => {
-        setIsChartsView(true); // Switch ON chart view
-        setActiveFilter(null); // Clear status filter selection
+    
+    const handleChartsClick = (chartType) => {
+        setActiveChart(chartType); 
+        setActiveFilter(null); 
     };
 
     return (
@@ -71,7 +84,6 @@ const StickyAdminHeader = ({
                     <h1 className="text-xl md:text-2xl font-extrabold text-teal-700 whitespace-nowrap">
                         Complaint Review Center
                     </h1>
-
                     <div className="flex items-center space-x-3">
                         <span className="text-sm font-semibold text-gray-700 hidden sm:inline">
                             Hello, {adminName}
@@ -93,21 +105,29 @@ const StickyAdminHeader = ({
                                 key={filter}
                                 onClick={() => handleFilterClick(filter)}
                                 className={getFilterButtonClass(filter)}
+                                disabled={!isListView} 
                             >
-                                {filter.charAt(0).toUpperCase() +
-                                    filter.slice(1).toLowerCase().replace(/_/g, " ")}
+                                {filter.charAt(0).toUpperCase() + filter.slice(1).toLowerCase().replace(/_/g, " ")}
                             </button>
                         ))}
 
-                        {/* NEW: Charts View Button */}
+                        {/* Chart Buttons: Department and Zone */}
                         <button
-                            key="charts"
-                            onClick={handleChartsClick}
-                            className={getFilterButtonClass('CHARTS')}
+                            key="dept_chart"
+                            onClick={() => handleChartsClick('DEPT_CHART')}
+                            className={getFilterButtonClass('DEPT_CHART')}
                         >
-                            📊 Charts View
+                            📊 Department Chart
+                        </button>
+                        <button
+                            key="zone_chart"
+                            onClick={() => handleChartsClick('ZONE_CHART')}
+                            className={getFilterButtonClass('ZONE_CHART')}
+                        >
+                            🗺️ Zone Chart
                         </button>
                     </div>
+                    {/* Refresh button */}
                     <button
                         onClick={onRefresh}
                         className="p-1.5 bg-teal-100 text-teal-700 rounded-full hover:bg-teal-200 transition shadow-sm"
@@ -140,7 +160,7 @@ const ImagePopup = ({ show, imageUrl, title, onClose }) => {
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-opacity-50 backdrop-blur-sm p-4"
             onClick={onClose}
         >
             <div
@@ -185,16 +205,17 @@ const ImagePopup = ({ show, imageUrl, title, onClose }) => {
     );
 };
 
-// --- Main Complaints Dashboard Component ---
+// --- Main Complaints Dashboard Component (UPDATED LOGIC) ---
 function ComplaintsDashboard() {
     const [allComplaints, setAllComplaints] = useState([]);
     const [allDepartments, setAllDepartments] = useState([]);
     const [departmentNames, setDepartmentNames] = useState({});
     const [loading, setLoading] = useState(true);
+    
+    const [activeChart, setActiveChart] = useState('LIST'); 
     const [activeFilter, setActiveFilter] = useState(STATUS_FILTERS.ALL_OPEN);
     
-    // NEW STATE: To toggle between complaint list view and charts view
-    const [isChartsView, setIsChartsView] = useState(false); 
+    const [feedbackDetails, setFeedbackDetails] = useState({}); 
 
     const [imageModal, setImageModal] = useState({
         show: false,
@@ -210,8 +231,16 @@ function ComplaintsDashboard() {
     const navigate = useNavigate();
 
     const handleLogout = () => {
-        localStorage.clear();
-        navigate("/adminLogin");
+        const loadingToastId = toast.loading("Logging out, please wait...");
+        
+        setTimeout(() => {
+            toast.dismiss(loadingToastId);
+            
+            localStorage.clear();
+            navigate("/"); 
+            
+            toast.success("Logged out successfully!");
+        }, 800); 
     };
 
     const openImageModal = (imageUrl, title) => {
@@ -252,25 +281,44 @@ function ComplaintsDashboard() {
             const data = await response.json();
             setAllComplaints(data);
 
-            // Fetch department names for all complaints that have been assigned or are in progress
-            const deptNamePromises = data
-                .filter((c) => c.status === STATUS_FILTERS.IN_PROGRESS || (c.department && c.department.id))
-                .map(async (c) => {
-                    try {
-                        const deptName = await getDepartmentNameByComplaintId(c.complainId);
-                        return { complainId: c.complainId, deptName };
-                    } catch (error) {
-                        console.error(`Failed to fetch department for complaint ${c.complainId}`);
-                        return { complainId: c.complainId, deptName: "Unknown Department" };
-                    }
-                });
-
-            const deptNamesArray = await Promise.all(deptNamePromises);
             const deptNamesMap = {};
-            deptNamesArray.forEach(({ complainId, deptName }) => {
-                deptNamesMap[complainId] = deptName;
+            const feedbackMap = {};
+            const promises = [];
+
+            data.forEach(c => {
+                // 1. Fetch Department Name (for IN_PROGRESS status)
+                if (c.status === STATUS_FILTERS.IN_PROGRESS || (c.department && c.department.id)) {
+                    promises.push(
+                        getDepartmentNameByComplaintId(c.complainId).then(deptName => {
+                            deptNamesMap[c.complainId] = deptName;
+                        }).catch(e => {
+                             console.error(`Failed to fetch department for complaint ${c.complainId}`, e);
+                        })
+                    );
+                }
+                
+                // 2. Fetch Feedback (for RESOLVED status)
+                if (c.status === STATUS_FILTERS.RESOLVED) {
+                    promises.push(
+                        fetchFeedbackDetails(c.complainId).then(feedback => {
+                            if (feedback) { 
+                                feedbackMap[c.complainId] = feedback;
+                            }
+                        }).catch(e => {
+                            if (e.response && e.response.status !== 404) {
+                                console.error(`Unexpected error fetching feedback for ${c.complainId}`, e);
+                            } else {
+                                console.warn(`No feedback found or API error for complaint ${c.complainId}`);
+                            }
+                        })
+                    );
+                }
             });
+
+            await Promise.all(promises);
             setDepartmentNames(deptNamesMap);
+            setFeedbackDetails(feedbackMap);
+
         } catch (error) {
             toast.error("Error fetching complaints: " + error.message);
         } finally {
@@ -278,6 +326,7 @@ function ComplaintsDashboard() {
         }
     }, []);
 
+    // REASSIGNMENT HANDLER
     const handleAssignDepartment = async (complainId, departmentId, days) => {
         const loadingToastId = toast.loading("Assigning department...");
         try {
@@ -298,7 +347,14 @@ function ComplaintsDashboard() {
                 throw new Error(errorData.message || "Department assignment failed.");
             }
 
-            toast.success(`Complaint ID ${complainId} assigned successfully!`, {
+            // Remove feedback from state, as the complaint is now IN_PROGRESS
+            setFeedbackDetails(prev => {
+                const newState = { ...prev };
+                delete newState[complainId];
+                return newState;
+            });
+
+            toast.success(`Complaint ID ${complainId} assigned successfully! Status is now IN_PROGRESS.`, {
                 id: loadingToastId,
             });
             fetchComplaints();
@@ -309,7 +365,7 @@ function ComplaintsDashboard() {
             throw error;
         }
     };
-
+    
     const handleStatusUpdate = async (complainId, newStatus) => {
         const loadingToastId = toast.loading(
             `Updating complaint ${complainId} to ${newStatus}...`
@@ -340,6 +396,7 @@ function ComplaintsDashboard() {
         }
     };
 
+
     useEffect(() => {
         if (localStorage.getItem("isAdmin") !== "true") {
             navigate("/adminLogin");
@@ -352,16 +409,15 @@ function ComplaintsDashboard() {
     // --- UI Helpers ---
     const getStatusClass = (status) => {
         switch (status) {
-            case STATUS_FILTERS.RESOLVED:
-                return "bg-green-600 border-green-700";
-            case STATUS_FILTERS.IN_PROGRESS:
-                return "bg-indigo-500 border-indigo-600";
-            default:
-                return "bg-yellow-500 border-yellow-600";
+            case STATUS_FILTERS.RESOLVED: return "bg-green-600 border-green-700";
+            case STATUS_FILTERS.IN_PROGRESS: return "bg-indigo-500 border-indigo-600";
+            default: return "bg-yellow-500 border-yellow-600";
         }
     };
 
     const filteredComplaints = allComplaints.filter((c) => {
+        if (activeChart !== 'LIST') return false; 
+        
         if (activeFilter === STATUS_FILTERS.ALL_OPEN) {
             return (
                 c.status === STATUS_FILTERS.PENDING ||
@@ -387,8 +443,8 @@ function ComplaintsDashboard() {
                 onRefresh={fetchComplaints}
                 activeFilter={activeFilter}
                 setActiveFilter={setActiveFilter}
-                isChartsView={isChartsView} // PASS NEW STATE
-                setIsChartsView={setIsChartsView} // PASS NEW SETTER
+                activeChart={activeChart} 
+                setActiveChart={setActiveChart} 
             />
 
             <ImagePopup
@@ -398,6 +454,7 @@ function ComplaintsDashboard() {
                 onClose={closeImageModal}
             />
 
+            {/* Pass the re-assigned complaint to the AssignmentPopup */}
             <AssignmentPopup
                 show={assignmentPopup.show}
                 complaint={assignmentPopup.complaint}
@@ -407,26 +464,14 @@ function ComplaintsDashboard() {
             />
 
             <main className="flex-grow p-3 md:p-4 max-w-7xl w-full mx-auto overflow-y-auto">
-                {/* --- CONDITIONAL RENDERING SECTION: SHOW CHARTS OR COMPLAINT LIST --- */}
-                {isChartsView ? (
-                    // 1. CHART VIEW: Show the chart(s)
-                    <div className="space-y-6">
-                        <ComplaintsByCategoryChart />
-                        
-                        {/* Placeholder for the Complaints Details by Zone (Bar Chart) */}
-                        {/* You would replace this with the actual Bar Chart component later */}
-                        <div className="bg-white p-6 rounded-xl shadow-2xl h-96 flex items-center justify-center">
-                             <h2 className="text-xl font-bold text-gray-800">
-                                📈 Complaints Details by Zone (Bar Chart Placeholder)
-                             </h2>
-                        </div>
-                    </div>
-                ) : (
-                    // 2. COMPLAINT LIST VIEW: Show Filtered Complaints
+                {/* --- CONDITIONAL RENDERING SECTION --- */}
+                {activeChart === 'DEPT_CHART' && (<ComplaintsByCategoryChart />)}
+                {activeChart === 'ZONE_CHART' && (<ComplaintsByZoneChart />)}
+
+                {activeChart === 'LIST' && (
                     <div className="bg-white p-4 rounded-xl shadow-xl flex flex-col">
                         <h2 className="text-xl font-bold text-gray-800 mb-3 border-b pb-2">
-                            {activeFilter.charAt(0).toUpperCase() +
-                                activeFilter.slice(1).toLowerCase().replace(/_/g, " ")}{" "}
+                            {activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1).toLowerCase().replace(/_/g, " ")}{" "}
                             Complaints ({filteredComplaints.length})
                         </h2>
 
@@ -435,15 +480,27 @@ function ComplaintsDashboard() {
                                 No **{activeFilter.toLowerCase().replace(/_/g, " ")}** complaints found. 🎉
                             </div>
                         ) : (
-                            <div
-                                className="flex-grow overflow-y-auto pr-2"
-                                style={{ maxHeight: "100%" }}
-                            >
+                            <div className="flex-grow overflow-y-auto pr-2" style={{ maxHeight: "100%" }}>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-4">
                                     {filteredComplaints.map((c) => {
                                         const isAssigned = c.department && c.department.id;
                                         const isInProgress = c.status === STATUS_FILTERS.IN_PROGRESS;
+                                        const isResolved = c.status === STATUS_FILTERS.RESOLVED; // Check if resolved
+
+                                        // Get feedback details from the new state
+                                        const feedback = feedbackDetails[c.complainId]; 
                                         const departmentName = departmentNames[c.complainId] || "Loading...";
+
+                                        // --- FEEDBACK LOGIC ---
+                                        const feedbackExists = !!feedback; 
+                                        const rating = feedbackExists ? feedback.rating : null;
+                                        const feedbackMessage = feedbackExists ? feedback.feedbackMessage : null;
+                                        const isFeedbackProvided = feedbackExists && rating !== 0 && rating !== null;
+                                        
+                                        // Reassign logic (3 or less AND feedback was provided)
+                                        const requiresReassign = isFeedbackProvided && rating <= 3;
+                                        // --- END LOGIC ---
+
 
                                         return (
                                             <div
@@ -453,41 +510,63 @@ function ComplaintsDashboard() {
                                                 <div className="flex-grow">
                                                     <div className="flex justify-between items-start mb-2 pb-2 border-b">
                                                         <div>
-                                                            <h3 className="text-base font-extrabold text-gray-900 line-clamp-1">
-                                                                {c.title}
-                                                            </h3>
+                                                            <h3 className="text-base font-extrabold text-gray-900 line-clamp-1">{c.title}</h3>
                                                             <p className="text-xs text-gray-500">
-                                                                ID:{" "}
-                                                                <span className="font-mono">{c.complainId}</span>
+                                                                ID: <span className="font-mono">{c.complainId}</span>
                                                             </p>
                                                         </div>
                                                         <span
-                                                            className={`px-2 py-0.5 text-xs font-bold text-white rounded-full ${getStatusClass(
-                                                                c.status
-                                                            )} whitespace-nowrap`}
+                                                            className={`px-2 py-0.5 text-xs font-bold text-white rounded-full ${getStatusClass(c.status)} whitespace-nowrap`}
                                                         >
                                                             {c.status.replace(/_/g, " ")}
                                                         </span>
                                                     </div>
 
-                                                    <p className="text-sm font-medium mb-1 text-teal-700">
-                                                        Category: {c.category}
-                                                    </p>
-                                                    <p className="text-xs text-gray-600 italic mb-2">
-                                                        User: {c.userEmail}
-                                                    </p>
-                                                    <p className="text-sm text-gray-700 mb-4">
-                                                        {c.description}
-                                                    </p>
+                                                    <p className="text-sm font-medium mb-1 text-teal-700">Category: {c.category}</p>
+                                                    <p className="text-xs text-gray-600 italic mb-2">User: {c.userEmail}</p>
+                                                    <p className="text-sm text-gray-700 mb-4">{c.description}</p>
 
+                                                    {/* --- Feedback Display & Reassign Logic --- */}
+                                                    {isResolved && (
+                                                        <div className="mb-4 p-3 bg-gray-100 rounded-lg border border-gray-200">
+                                                            <p className="text-xs font-semibold text-gray-700 mb-1">User Feedback:</p>
+                                                            
+                                                            {isFeedbackProvided ? (
+                                                                <>
+                                                                    <div className="flex items-center space-x-2 mb-1">
+                                                                        <StarRating rating={rating} />
+                                                                        <span className="text-sm font-bold text-gray-900">({rating} / 5)</span>
+                                                                    </div>
+                                                                    {feedbackMessage && (
+                                                                        <p className="text-sm text-gray-600 italic border-l-2 border-gray-300 pl-2">
+                                                                            "{feedbackMessage}"
+                                                                        </p>
+                                                                    )}
+                                                                    {requiresReassign && (
+                                                                        <button
+                                                                            // Reassign button opens the assignment popup
+                                                                            onClick={() => openAssignmentPopup(c)} 
+                                                                            className="w-full mt-3 p-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 transition shadow-md"
+                                                                        >
+                                                                            🚨 Re-Assign
+                                                                        </button>
+                                                                    )}
+                                                                </>
+                                                            ) : (
+                                                                <p className="text-sm text-gray-500">No feedback provided.</p>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    
                                                     {/* Department Assignment Section */}
                                                     <div className="mb-4">
-                                                        {isAssigned || isInProgress ? (
-                                                            <p className="text-sm font-bold text-indigo-700 bg-indigo-50 p-2 rounded-lg border border-indigo-200">
-                                                                Assigned to: {departmentName}
-                                                            </p>
-                                                        ) : (
-                                                            c.status !== STATUS_FILTERS.RESOLVED && (
+                                                        {/* This section is hidden if resolved OR if reassignment button is already showing */}
+                                                        {!isResolved && !requiresReassign && ( 
+                                                            isAssigned || isInProgress ? (
+                                                                <p className="text-sm font-bold text-indigo-700 bg-indigo-50 p-2 rounded-lg border border-indigo-200">
+                                                                    Assigned to: {departmentName}
+                                                                </p>
+                                                            ) : (
                                                                 <button
                                                                     onClick={() => openAssignmentPopup(c)}
                                                                     className="w-full p-2 bg-teal-500 text-white rounded-md text-sm font-medium hover:bg-teal-600 transition shadow-md"
@@ -498,81 +577,47 @@ function ComplaintsDashboard() {
                                                         )}
                                                     </div>
 
-                                                    {/* Image Display Buttons */}
+                                                    {/* Image Display Buttons (Unchanged) */}
                                                     <div className="flex space-x-2 pt-2 border-t border-gray-100">
                                                         {c.beforeImagePath && (
                                                             <button
-                                                                onClick={() =>
-                                                                    openImageModal(
-                                                                        `${FILE_BASE_URL}/${c.beforeImagePath}`,
-                                                                        `Evidence: Before Image - Complaint #${c.complainId}`
-                                                                    )
-                                                                }
+                                                                onClick={() => openImageModal(`${FILE_BASE_URL}/${c.beforeImagePath}`, `Evidence: Before Image - Complaint #${c.complainId}`)}
                                                                 className="flex-1 py-1 bg-yellow-500 text-white text-xs font-medium rounded-lg hover:bg-yellow-600 shadow-sm"
-                                                            >
-                                                                View Before
-                                                            </button>
+                                                            >View Before</button>
                                                         )}
                                                         {c.afterImagePath && (
                                                             <button
-                                                                onClick={() =>
-                                                                    openImageModal(
-                                                                        `${FILE_BASE_URL}/${c.afterImagePath}`,
-                                                                        `Resolution: After Image - Complaint #${c.complainId}`
-                                                                    )
-                                                                }
+                                                                onClick={() => openImageModal(`${FILE_BASE_URL}/${c.afterImagePath}`, `Resolution: After Image - Complaint #${c.complainId}`)}
                                                                 className="flex-1 py-1 bg-green-500 text-white text-xs font-medium rounded-lg hover:bg-green-600 shadow-sm"
-                                                            >
-                                                                View After
-                                                            </button>
+                                                            >View After</button>
                                                         )}
                                                     </div>
                                                 </div>
 
-                                                {/* Footer Section */}
+                                                {/* Footer Section: UPDATE MESSAGE TEXTAREA MODIFICATION */}
                                                 <div className="mt-3 pt-3 border-t border-gray-100 flex-shrink-0">
-                                                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                                                        Update Message:
-                                                    </label>
+                                                    <label className="block text-xs font-medium text-gray-700 mb-1">Update Message:</label>
                                                     <textarea
                                                         value={messageInput[c.complainId] ?? c.message ?? ""}
-                                                        onChange={(e) =>
-                                                            handleMessageChange(c.complainId, e.target.value)
-                                                        }
-                                                        placeholder="Message for the user..."
+                                                        onChange={(e) => handleMessageChange(c.complainId, e.target.value)}
+                                                        placeholder={isResolved ? "Complaint is resolved; message cannot be updated." : "Message for the user..."}
                                                         rows="2"
-                                                        className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                                        className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+                                                        // --- KEY CHANGE: Disable if resolved ---
+                                                        disabled={isResolved} 
                                                     ></textarea>
 
-                                                    {/* Status Update Buttons */}
                                                     <div className="flex space-x-2 pt-2">
                                                         <button
-                                                            onClick={() =>
-                                                                handleStatusUpdate(
-                                                                    c.complainId,
-                                                                    STATUS_FILTERS.IN_PROGRESS
-                                                                )
-                                                            }
+                                                            onClick={() => handleStatusUpdate(c.complainId, STATUS_FILTERS.IN_PROGRESS)}
                                                             className="flex-1 py-2 bg-indigo-500 text-white rounded-lg text-xs font-medium hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
-                                                            disabled={
-                                                                c.status === STATUS_FILTERS.RESOLVED ||
-                                                                c.status === STATUS_FILTERS.IN_PROGRESS
-                                                            }
-                                                        >
-                                                            Set In Progress
-                                                        </button>
+                                                            disabled={c.status === STATUS_FILTERS.RESOLVED || c.status === STATUS_FILTERS.IN_PROGRESS}
+                                                        >Set In Progress</button>
                                                         <button
-                                                            onClick={() =>
-                                                                handleStatusUpdate(
-                                                                    c.complainId,
-                                                                    STATUS_FILTERS.RESOLVED
-                                                                )
-                                                            }
+                                                            onClick={() => handleStatusUpdate(c.complainId, STATUS_FILTERS.RESOLVED)}
                                                             className="flex-1 py-2 bg-green-500 text-white rounded-lg text-xs font-medium hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
                                                             disabled={c.status === STATUS_FILTERS.RESOLVED}
-                                                        >
-                                                            Mark Resolved
-                                                        </button>
+                                                        >Mark Resolved</button>
                                                     </div>
                                                 </div>
                                             </div>

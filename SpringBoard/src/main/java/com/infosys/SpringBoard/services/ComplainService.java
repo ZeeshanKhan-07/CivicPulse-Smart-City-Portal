@@ -23,7 +23,9 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -68,7 +70,8 @@ public class ComplainService {
     }
 
     @Transactional
-    public Complains submitNewComplain(Long userId, String title, String category, String description, String city, String location,
+    public Complains submitNewComplain(Long userId, String title, String category, String description, String city,
+            String location,
             MultipartFile imageFile) throws IOException {
 
         Optional<User> userOptional = userService.findById(userId);
@@ -280,4 +283,17 @@ public class ComplainService {
         return complainRepository.getComplaintCountByDepartment();
     }
 
+    public List<Map<String, Object>> getComplaintCountByCity() {
+        return complainRepository.getComplaintCountByCity();
+    }
+
+    public Optional<Map<String, Object>> getFeedbackDetailsByComplainId(Long complainId) {
+        return complainRepository.findById(complainId).map(complaint -> {
+            Map<String, Object> feedbackDetails = new HashMap<>();
+            feedbackDetails.put("rating", complaint.getRating());
+            feedbackDetails.put("feedbackMessage", complaint.getFeedback());
+            feedbackDetails.put("status", complaint.getStatus().toString());
+            return feedbackDetails;
+        });
+    }
 }

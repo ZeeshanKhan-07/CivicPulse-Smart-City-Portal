@@ -5,6 +5,7 @@ import com.infosys.SpringBoard.entity.Complains;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -34,4 +35,6 @@ public interface ComplainRepository extends JpaRepository<Complains, Long> {
             "GROUP BY d.name")
     List<DepartmentComplaintCountDTO> getComplaintCountByDepartment();
 
+    @Query("SELECT c.city AS city, COUNT(c) AS count FROM Complains c GROUP BY c.city")
+    List<Map<String, Object>> getComplaintCountByCity();
 }
